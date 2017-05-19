@@ -1,18 +1,22 @@
 #!/usr/bin/env python3
 
-import sys, argparse
+import sys, argparse, configparser
 import infoblox
 
-def usage():
-    print('Usage.')
-
-def run(args):
-
-    ipam = infoblox.Infoblox('config.ini')
+def run(args, conf):
+    
+    client = conf['client']
+    ipam = infoblox.Infoblox(client['baseurl'], 
+                             (client['user'], client['password']))
     print(ipam.do('').text)
-
+    
 if __name__ == '__main__':
     parser = argparse.ArgumentParser()
-    parser.add_argument('command', help="the command to run against the ipam server")
+    parser.add_argument('command', 
+                        help="the command to run against the ipam server")
+    args = parser.parse_args()
     
-    run(parser.parse_args())
+    conf = configparser.ConfigParser()
+    conf.read('config.ini')
+    
+    run(args, conf)
