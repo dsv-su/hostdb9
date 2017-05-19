@@ -6,7 +6,7 @@ import infoblox
 def usage():
     print('Usage.')
 
-def run():
+def run(args):
 
     ipam = infoblox.Infoblox('config.ini')
     print(ipam.do('').text)
