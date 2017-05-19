@@ -1,0 +1,4 @@
+[main]
+user     = someuser
+password = somepassword
+baseurl  = https://example.com/wapi/v2.2.2/
