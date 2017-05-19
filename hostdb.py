@@ -12,8 +12,12 @@ def run(args, conf):
     
 if __name__ == '__main__':
     parser = argparse.ArgumentParser()
+    parser.add_argument('-v', 
+                        action  = 'count',
+                        default = 0,
+                        help    ='enable verbose output')
     parser.add_argument('command', 
-                        help="the command to run against the ipam server")
+                        help='the command to run against the ipam server')
     args = parser.parse_args()
     
     conf = configparser.ConfigParser()

@@ -1,0 +1,4 @@
+Ipam docs:        https://ipam.illinois.edu/wapidoc/
+Argument parsing: https://docs.python.org/3.4/library/argparse.html
+Config parsing:   https://docs.python.org/3.4/library/configparser.html
+HTTP requests:    http://docs.python-requests.org/en/latest/index.html
