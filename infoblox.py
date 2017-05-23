@@ -1,9 +1,12 @@
 import requests
 
 class Infoblox:
-    def __init__(self, baseurl, auth):
+    def __init__(self, baseurl, user, password):
         self.baseurl = baseurl
-        self.auth = auth
+        self.auth = (user, password)
 
-    def do(self, resource):
-        return requests.get(self.baseurl + resource, auth=self.auth)
+    def req(self, method, path, **kwargs):
+        return requests.request(method, self.baseurl + path, auth=self.auth, **kwargs)
+
+    def get_names_from_subnet(self, subnet):
+        pass
