@@ -6,7 +6,7 @@ import infoblox
 class hostdb9:
     def __init__(self, args, conf):
         self.verbose = args.verbose
-        self.client = conf['client']
+        self.client = conf['server']
         self.ipam = infoblox.Infoblox(self.client['baseurl'],
                                       self.client['user'],
                                       self.client['password'])
@@ -14,17 +14,27 @@ class hostdb9:
     def execute(self, command):
         pass
 
-    def execute_temp(self, method, path, params=None):
-        r = self.ipam.req(method, path, params=params)
-        print(r.status_code)
-        if self.verbose: print(r.text)
+    def format(self, response, *fields):
+        return {str(field) : response[field]
+                for field in response
+                if field in fields}
 
     def interact(self):
-        self.execute_temp('get', '', params=[('_schema', '')])
-        self.execute_temp('get', 'network')
-        self.execute_temp('get', 'zone_auth', [('_return_fields', 'address')])
-
-
+        vlans = self.ipam.list_vlans()
+        for vlan in vlans:
+            print('Vlan:', vlan['network'], vlan['comment'])
+        print('Count:', len(vlans))
+        records = self.ipam.search({'name~':'.',
+                                    'zone': 'dsv.su.se',
+                                    '_return_fields+': 'record'})
+        for record in records:
+            if record['type'] == 'UNSUPPORTED':
+                print(self.ipam.get(record['record']['_ref']))
+            else:
+                print(record['type'],
+                      record['name'] + '.' + record['zone'])
+        print('Count:', len(records))
+            
 if __name__ == '__main__':
     parser = argparse.ArgumentParser()
     parser.add_argument('-v', '--verbose',
@@ -46,3 +56,14 @@ if __name__ == '__main__':
         client.execute(command)
     else:
         client.interact()
+
+'''
+        self.execute_temp('get',
+                          'zone_auth',
+                          params=[('_return_fields', 'address')])
+        self.execute_temp('get',
+                          'record:host',
+                          params=[('_paging', 1),
+                                  ('_max_results', 1000),
+                                  ('_return_as_object', 1)])
+'''
