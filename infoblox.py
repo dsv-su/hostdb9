@@ -9,14 +9,23 @@ class Infoblox:
         self.session.auth = (user, password)
         self.baseurl = baseurl
 
-    def get(self, path, **kwargs):
-        r = self.__get_first_page(path, **kwargs)
-        out = list()
-        while 'next_page_id' in r:
-            out.extend(r['result'])
-            r = self.__get_next_page(path, r['next_page_id'])
-        out.extend(r['result'])
-        return out
+    def get(self, path, paginate=0, **kwargs):
+        if paginate == 1:
+            r = self.__get_first_page(path, **kwargs)
+            out = list()
+            while 'next_page_id' in r:
+                out.extend(r['result'])
+                r = self.__get_next_page(path, r['next_page_id'])
+                out.extend(r['result'])
+            return out
+        else:
+            try:
+                return self.__do_request('get', path, **kwargs)
+            except IpamError as e:
+                if e.response['code'] == 'Client.Ibap.Proto':
+                    return self.get(path, paginate=1, **kwargs)
+                else:
+                    raise e
 
     def __get_first_page(self, path, **kwargs):
         if not kwargs:
@@ -46,7 +55,8 @@ class Infoblox:
             raise IpamError(r.status_code, j)
 
     def search(self, terms_dict):
-        return self.get('allrecords',
+        return self.get('allrecords', 
+                        paginate=1,
                         params=terms_dict)
 
     def list_vlans(self):

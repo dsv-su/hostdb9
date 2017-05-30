@@ -2,39 +2,35 @@
 
 import argparse, configparser
 import infoblox
+import iblox
 
-class hostdb9:
+class Hostdb9:
     def __init__(self, args, conf):
         self.verbose = args.verbose
-        self.client = conf['server']
-        self.ipam = infoblox.Infoblox(self.client['baseurl'],
-                                      self.client['user'],
-                                      self.client['password'])
+        self.ipam = Ipam(conf['server'])
 
     def execute(self, command):
         pass
 
-    def format(self, response, *fields):
+    def temp(self):
+        for i in self.ipam.get_host_by_name('wordpress.dsv.su.se'):
+            print(self.ipam.get_ref(i))
+
+class Ipam(iblox.Infoblox):
+    def __init__(self, conf):
+        super().__init__(uri=conf['baseurl'],
+                         username=conf['user'],
+                         password=conf['password'],
+                         verify_ssl=conf['verify_ssl'])
+
+    def format(self, record, *fields):
         return {str(field) : response[field]
                 for field in response
                 if field in fields}
 
-    def interact(self):
-        vlans = self.ipam.list_vlans()
-        for vlan in vlans:
-            print('Vlan:', vlan['network'], vlan['comment'])
-        print('Count:', len(vlans))
-        records = self.ipam.search({'name~':'.',
-                                    'zone': 'dsv.su.se',
-                                    '_return_fields+': 'record'})
-        for record in records:
-            if record['type'] == 'UNSUPPORTED':
-                print(self.ipam.get(record['record']['_ref']))
-            else:
-                print(record['type'],
-                      record['name'] + '.' + record['zone'])
-        print('Count:', len(records))
-            
+    def get_ref(self, record):
+        return record['_ref']
+
 if __name__ == '__main__':
     parser = argparse.ArgumentParser()
     parser.add_argument('-v', '--verbose',
@@ -50,20 +46,31 @@ if __name__ == '__main__':
     conf = configparser.ConfigParser()
     conf.read('config.ini')
 
-    client = hostdb9(args, conf)
+    client = Hostdb9(args, conf)
     
     if args.command:
         client.execute(command)
     else:
-        client.interact()
+        client.temp()
+
 
 '''
-        self.execute_temp('get',
-                          'zone_auth',
-                          params=[('_return_fields', 'address')])
-        self.execute_temp('get',
-                          'record:host',
-                          params=[('_paging', 1),
-                                  ('_max_results', 1000),
-                                  ('_return_as_object', 1)])
-'''
+    def temp(self):
+        vlans = self.ipam.list_vlans()
+        for vlan in vlans:
+            print('Vlan:', vlan['network'], vlan['comment'])
+        print('Count:', len(vlans))
+        records = self.ipam.search({'name~':'.',
+                                    'zone': 'dsv.su.se',
+                                    '_return_fields+': 'record'})
+        types = set()
+        for record in records:
+            types.add(record['type'])
+            if record['type'] == 'UNSUPPORTED':
+                print(record)
+            else:
+                print(record['type'],
+                      record['name'] + '.' + record['zone'])
+        print('types:', types)
+        print('Count:', len(records))
+'''            
