@@ -1,13 +1,14 @@
+# coding=utf-8
 import requests, json
 
 class Infoblox:
-    def __init__(self, baseurl, user, password):
+    def __init__(self, conf):
+        baseurl = conf['baseurl']
         if not baseurl.endswith('/'):
             baseurl += '/'
-
-        self.session = requests.Session()
-        self.session.auth = (user, password)
         self.baseurl = baseurl
+        self.session = requests.Session()
+        self.session.auth = (conf['user'], conf['password'])
 
     def get(self, path, paginate=0, **kwargs):
         if paginate == 1:

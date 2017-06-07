@@ -1,35 +1,36 @@
 #!/usr/bin/env python3
+# coding=utf-8
 
 import argparse, configparser
 import infoblox
-import iblox
 
 class Hostdb9:
     def __init__(self, args, conf):
         self.verbose = args.verbose
-        self.ipam = Ipam(conf['server'])
+        self.ipam = infoblox.Infoblox(conf['server'])
 
     def execute(self, command):
         pass
 
     def temp(self):
-        for i in self.ipam.get_host_by_name('wordpress.dsv.su.se'):
-            print(self.ipam.get_ref(i))
+        vlans = self.ipam.list_vlans()
+        for vlan in vlans:
+            print('Vlan:', vlan['network'], vlan['comment'])
+        print('Count:', len(vlans))
+        records = self.ipam.search({'name~':'.',
+                                    'zone': 'dsv.su.se',
+                                    '_return_fields+': 'record'})
+        types = set()
+        for record in records:
+            types.add(record['type'])
+            if record['type'] == 'UNSUPPORTED':
+                print(record)
+            else:
+                print(record['type'],
+                      record['name'] + '.' + record['zone'])
+        print('types:', types)
+        print('Count:', len(records))
 
-class Ipam(iblox.Infoblox):
-    def __init__(self, conf):
-        super().__init__(uri=conf['baseurl'],
-                         username=conf['user'],
-                         password=conf['password'],
-                         verify_ssl=conf['verify_ssl'])
-
-    def format(self, record, *fields):
-        return {str(field) : response[field]
-                for field in response
-                if field in fields}
-
-    def get_ref(self, record):
-        return record['_ref']
 
 if __name__ == '__main__':
     parser = argparse.ArgumentParser()
@@ -53,24 +54,3 @@ if __name__ == '__main__':
     else:
         client.temp()
 
-
-'''
-    def temp(self):
-        vlans = self.ipam.list_vlans()
-        for vlan in vlans:
-            print('Vlan:', vlan['network'], vlan['comment'])
-        print('Count:', len(vlans))
-        records = self.ipam.search({'name~':'.',
-                                    'zone': 'dsv.su.se',
-                                    '_return_fields+': 'record'})
-        types = set()
-        for record in records:
-            types.add(record['type'])
-            if record['type'] == 'UNSUPPORTED':
-                print(record)
-            else:
-                print(record['type'],
-                      record['name'] + '.' + record['zone'])
-        print('types:', types)
-        print('Count:', len(records))
-'''            
