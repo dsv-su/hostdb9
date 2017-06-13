@@ -12,11 +12,7 @@ class Hostdb9:
     def execute(self, command):
         pass
 
-    def temp(self):
-        vlans = self.ipam.list_vlans()
-        for vlan in vlans:
-            print('Vlan:', vlan['network'], vlan['comment'])
-        print('Count:', len(vlans))
+    def temp2(self):
         records = self.ipam.search({'name~':'.',
                                     'zone': 'dsv.su.se',
                                     '_return_fields+': 'record'})
@@ -31,6 +27,27 @@ class Hostdb9:
         print('types:', types)
         print('Count:', len(records))
 
+    def temp(self):
+        vlans = self.ipam.list_vlans()
+        for vlan in vlans:
+            vlan_ref = vlan['_ref']
+            vlan_cidr = vlan['network']
+            vlan_comment = vlan['comment']
+            print('Vlan:', vlan_cidr, vlan_comment)
+            for ip in self.ipam.list_vlan_ips(vlan_cidr):
+                print('Host:', 
+                      ip['ip_address'], 
+                      ip['status'], 
+                      ip['names'])
+            print(self.ipam.create_host_auto(vlan_cidr, 'test.dsv.su.se'))
+            print(self.ipam.create_alias('test.dsv.su.se', 
+                                         'example.dsv.su.se'))
+            for cname in self.ipam.list_cnames('dsv.su.se'):
+                print('Cname:',
+                      cname['canonical'],
+                      cname['name'])
+            print(self.ipam.delete_host('test.dsv.su.se'))
+            print(self.ipam.delete_alias('example.dsv.su.se'))
 
 if __name__ == '__main__':
     parser = argparse.ArgumentParser()
@@ -50,7 +67,7 @@ if __name__ == '__main__':
     client = Hostdb9(args, conf)
     
     if args.command:
-        client.execute(command)
+        client.temp2()
     else:
         client.temp()
 
