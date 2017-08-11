@@ -2,13 +2,13 @@
 import requests, json
 
 class Infoblox:
-    def __init__(self, conf):
-        baseurl = conf['baseurl']
-        if not baseurl.endswith('/'):
-            baseurl += '/'
-        self.baseurl = baseurl
+    def __init__(self, url, username, password, verify_ssl):
+        if url.endswith('/') is False:
+            url += '/'
+        self.baseurl = url
         self.session = requests.Session()
-        self.session.auth = (conf['user'], conf['password'])
+        self.session.auth = (username, password)
+        self.session.verify = verify_ssl
 
     def get(self, path, paginate=0, **kwargs):
         if paginate == 1:
@@ -64,34 +64,51 @@ class Infoblox:
                                  path,
                                  params={'_page_id': page})
 
-    def __next_available_ip(self, vlan_ref):
-        result = self.post(vlan_ref, 
-                           data='{"num":1}', 
-                           params={'_function': 'next_available_ip'})
-        return result['ips'][0]
+class Client:
+    def __init__(self, iblox):
+        self.iblox = iblox
 
-    def __get_ref(self, rtype, name):
-        remote_obj = self.get(rtype, params={'name': name})
+    def __get_ref(self, path, name=None):
+        params = {}
+        if name is not None:
+            params = {'name': name}
+        remote_obj = self.iblox.get(path, params=params)
         if len(remote_obj) > 1:
             raise ClientError("Ambiguous result: " + json.dumps(remote_obj))
         if len(remote_obj) == 0:
-            raise ClientError("Hostname not found: " + host)
+            raise ClientError("Ref not found: " + path + ' ' + name)
         return remote_obj[0]['_ref']
 
+    def __next_available_ip(self, vlan_ref):
+        result = self.iblox.post(vlan_ref, 
+                                 data='{"num":1}', 
+                                 params={'_function': 'next_available_ip'})
+        return result['ips'][0]
+
+    def __restart_dhcp(self):
+        gridref = self.__get_ref('grid')
+        data = {'_function': 'requestrestartservicestatus',
+                'member_order': 'SIMULTANEOUSLY',
+                'service_option': 'DHCP'}
+        self.iblox.get(gridref, data=json.dumps(data))
+
     def search(self, terms_dict):
-        return self.get('allrecords', 
-                        paginate=1,
-                        params=terms_dict)
+        return self.iblox.get('allrecords', 
+                              paginate=1,
+                              params=terms_dict)
 
     def list_vlans(self):
-        return self.get('network',
-                        params={'_return_fields': 'network,comment'})
+        return self.iblox.get('network',
+                              params={'_return_fields': 'network,comment'})
 
     def list_vlan_ips(self, vlan_cidr):
-        return self.get('ipv4address', params={'network': vlan_cidr})
+        return self.iblox.get('ipv4address', params={'network': vlan_cidr})
 
     def list_cnames(self, tld):
-        return self.get('record:cname', params={'name~': tld})
+        return self.iblox.get('record:cname', params={'name~': tld})
+
+    def list_dhcp_ranges(self, tld):
+        pass
 
     def create_host_auto(self, vlan_cidr, host, mac=None):
         vlans = self.list_vlans()
@@ -110,24 +127,33 @@ class Infoblox:
                 'ipv4addrs': [{'ipv4addr': ip}]}
         if mac is not None:
             data['ipv4addrs'][0]['mac'] = mac
-        return self.post('record:host', data=json.dumps(data))
+        ref = self.iblox.post('record:host', data=json.dumps(data))
+        if mac is not None:
+            self.__restart_dhcp()
+        return ref
 
     def delete_host(self, host):
-        return self.delete(self.__get_ref('record:host', host))
+        return self.iblox.delete(self.__get_ref('record:host', host))
 
     def create_alias(self, host, alias):
         data = {'name': alias,
                 'canonical': host}
-        return self.post('record:cname', data=json.dumps(data))
+        return self.iblox.post('record:cname', data=json.dumps(data))
 
     def delete_alias(self, alias):
-        return self.delete(self.__get_ref('record:cname', alias))
+        return self.iblox.delete(self.__get_ref('record:cname', alias))
+
+    def create_dhcp_range(self, start, end):
+        pass
+
+    def delete_dhcp_range(self, start, end):
+        pass
 
 class ClientError(Exception):
     def __init__(self, message):
         self.message = message
 
-class IpamError(Exception):
-    def __init__(self, result, response):
+class IpamError(ClientError):
+    def __init__(self, result, message):
         self.result = result
-        self.response = response
+        self.message = message

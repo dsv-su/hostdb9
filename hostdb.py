@@ -7,47 +7,79 @@ import infoblox
 class Hostdb9:
     def __init__(self, args, conf):
         self.verbose = args.verbose
-        self.ipam = infoblox.Infoblox(conf['server'])
+        ibloxconf = conf['server']
+        self.iblox = infoblox.Infoblox(ibloxconf['baseurl'],
+                                       ibloxconf['user'],
+                                       ibloxconf['password'],
+                                       bool(ibloxconf['verify_ssl']))
+        self.client = infoblox.Client(self.iblox)
 
     def execute(self, command):
-        pass
+        if command == ['test']:
+            self.temp()
+        elif command == ['test2']:
+            self.temp2()
+        else:
+            print(command)
+
+    def interact(self):
+        while True:
+            command = 'exit'
+            try:
+                command = input('hostdb9> ')
+            except EOFError as e:
+                print(command)
+                return
+            if command == 'exit':
+                return
+            self.execute(command)
 
     def temp2(self):
-        records = self.ipam.search({'name~':'.',
-                                    'zone': 'dsv.su.se',
-                                    '_return_fields+': 'record'})
-        types = set()
+        records = self.client.search({'name~': '.',
+                                      'zone': 'dsv.su.se',
+                                      '_return_fields+': 'record'})
         for record in records:
-            types.add(record['type'])
             if record['type'] == 'UNSUPPORTED':
                 print(record)
             else:
                 print(record['type'],
                       record['name'] + '.' + record['zone'])
-        print('types:', types)
-        print('Count:', len(records))
 
     def temp(self):
-        vlans = self.ipam.list_vlans()
+        vlans = self.client.list_vlans()
         for vlan in vlans:
             vlan_ref = vlan['_ref']
             vlan_cidr = vlan['network']
             vlan_comment = vlan['comment']
             print('Vlan:', vlan_cidr, vlan_comment)
-            for ip in self.ipam.list_vlan_ips(vlan_cidr):
+            for ip in self.client.list_vlan_ips(vlan_cidr):
                 print('Host:', 
                       ip['ip_address'], 
                       ip['status'], 
                       ip['names'])
-            print(self.ipam.create_host_auto(vlan_cidr, 'test.dsv.su.se'))
-            print(self.ipam.create_alias('test.dsv.su.se', 
-                                         'example.dsv.su.se'))
-            for cname in self.ipam.list_cnames('dsv.su.se'):
+            try:
+                print(self.client.create_host_auto(vlan_cidr, 
+                                                   'test.dsv.su.se', 
+                                                   'AA:BB:CC:DD:EE:FF'))
+            except infoblox.ClientError as e:
+                print(e.message)
+            try:
+                print(self.client.create_alias('test.dsv.su.se', 
+                                               'example.dsv.su.se'))
+            except infoblox.ClientError as e:
+                print(e.message)
+            for cname in self.client.list_cnames('dsv.su.se'):
                 print('Cname:',
                       cname['canonical'],
                       cname['name'])
-            print(self.ipam.delete_host('test.dsv.su.se'))
-            print(self.ipam.delete_alias('example.dsv.su.se'))
+            try:
+                print(self.client.delete_host('test.dsv.su.se'))
+            except infoblox.ClientError as e:
+                print(e.message)
+            try:
+                print(self.client.delete_alias('example.dsv.su.se'))
+            except infoblox.ClientError as e:
+                print(e.message)
 
 if __name__ == '__main__':
     parser = argparse.ArgumentParser()
@@ -56,7 +88,7 @@ if __name__ == '__main__':
                         default = 0,
                         help    ='enable verbose output')
     parser.add_argument('command', 
-                        nargs   = '?',
+                        nargs   = '*',
                         default = None,
                         help    = 'the command to run against the ipam server')
     args = parser.parse_args()
@@ -67,7 +99,7 @@ if __name__ == '__main__':
     client = Hostdb9(args, conf)
     
     if args.command:
-        client.temp2()
+        client.execute(args.command)
     else:
-        client.temp()
+        client.interact()
 
