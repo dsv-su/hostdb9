@@ -32,7 +32,7 @@ class Hostdb9:
                 return
             if command == 'exit':
                 return
-            self.execute(command)
+            self.execute([command])
 
     def temp2(self):
         records = self.client.search({'name~': '.',
@@ -46,6 +46,7 @@ class Hostdb9:
                       record['name'] + '.' + record['zone'])
 
     def temp(self):
+        print('Listing vlans...')
         vlans = self.client.list_vlans()
         for vlan in vlans:
             vlan_ref = vlan['_ref']
@@ -58,28 +59,42 @@ class Hostdb9:
                       ip['status'], 
                       ip['names'])
             try:
+                print('Creating host...')
                 print(self.client.create_host_auto(vlan_cidr, 
                                                    'test.dsv.su.se', 
                                                    'AA:BB:CC:DD:EE:FF'))
             except infoblox.ClientError as e:
                 print(e.message)
             try:
-                print(self.client.create_alias('test.dsv.su.se', 
+                print('Creating cname...')
+                print(self.client.create_cname('test.dsv.su.se', 
                                                'example.dsv.su.se'))
             except infoblox.ClientError as e:
                 print(e.message)
-            for cname in self.client.list_cnames('dsv.su.se'):
+
+            print('Listing cnamees...')
+            for cname in self.client.list_cnames('test.dsv.su.se'):
                 print('Cname:',
                       cname['canonical'],
                       cname['name'])
             try:
+                print('Deleting host...')
                 print(self.client.delete_host('test.dsv.su.se'))
             except infoblox.ClientError as e:
                 print(e.message)
             try:
-                print(self.client.delete_alias('example.dsv.su.se'))
+                print('Deleting cname...')
+                print(self.client.delete_cname('example.dsv.su.se'))
             except infoblox.ClientError as e:
                 print(e.message)
+
+        print('Listing cnames...')
+        for cname in self.client.list_cnames('handledning.dsv.su.se'):
+            print('Cname:', cname['name'])
+        print('Listing aliases...')
+        result = self.client.list_iblox_aliases('mimas.dsv.su.se')
+        for alias in result:
+            print('Alias:', alias)
 
 if __name__ == '__main__':
     parser = argparse.ArgumentParser()

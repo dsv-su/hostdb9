@@ -104,22 +104,28 @@ class Client:
     def list_vlan_ips(self, vlan_cidr):
         return self.iblox.get('ipv4address', params={'network': vlan_cidr})
 
-    def list_cnames(self, tld):
-        return self.iblox.get('record:cname', params={'name~': tld})
+    def list_cnames(self, host):
+        return self.iblox.get('record:cname', params={'canonical': host})
 
-    def list_dhcp_ranges(self, tld):
+    def list_iblox_aliases(self, host):
+        result = self.iblox.get('record:host', params={'name': host,
+                                                       '_return_fields': 'aliases'})
+        if len(result) != 1:
+            raise ClientError("Ambiguous result: " + json.dumps(result))
+        return result[0]['aliases']
+        
+    def list_dhcp_ranges(self, vlan_cidr):
         pass
 
     def create_host_auto(self, vlan_cidr, host, mac=None):
-        vlans = self.list_vlans()
-        vlan_ref = None
-        for vlan in vlans:
-            if vlan['network'] == vlan_cidr:
-                vlan_ref = vlan['_ref']
-                break
-        if vlan_ref is None:
+        vlan = self.iblox.get('network',
+                              params={'network': vlan_cidr})
+        if len(vlan) > 1:
+            raise ClientError("Ambiguous result: " + vlan)
+        vlan = vlan[0]
+        if '_ref' not in vlan:
             raise ClientError("Network not found: " + vlan_cidr)
-        ip = self.__next_available_ip(vlan_ref)
+        ip = self.__next_available_ip(vlan['_ref'])
         return self.create_host(ip, host, mac)
 
     def create_host(self, ip, host, mac=None):
@@ -135,12 +141,12 @@ class Client:
     def delete_host(self, host):
         return self.iblox.delete(self.__get_ref('record:host', host))
 
-    def create_alias(self, host, alias):
+    def create_cname(self, host, alias):
         data = {'name': alias,
                 'canonical': host}
         return self.iblox.post('record:cname', data=json.dumps(data))
 
-    def delete_alias(self, alias):
+    def delete_cname(self, alias):
         return self.iblox.delete(self.__get_ref('record:cname', alias))
 
     def create_dhcp_range(self, start, end):
