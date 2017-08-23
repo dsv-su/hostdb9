@@ -113,7 +113,7 @@ class Client:
         if len(result) != 1:
             raise ClientError("Ambiguous result: " + json.dumps(result))
         return result[0]['aliases']
-        
+
     def list_dhcp_ranges(self, vlan_cidr):
         pass
 
@@ -149,11 +149,18 @@ class Client:
     def delete_cname(self, alias):
         return self.iblox.delete(self.__get_ref('record:cname', alias))
 
-    def create_dhcp_range(self, start, end):
-        pass
+    def create_dhcp_range(self, start, end, comment=None):
+        data = {'start_addr': start,
+                'end_addr': end,
+                'server_association_type': 'FAILOVER',
+                'failover_association': 'ib-prod-dhcp'}
+        if comment not None:
+            data['comment'] = comment
+        return self.iblox.post('range', data=json.dumps(data))
 
     def delete_dhcp_range(self, start, end):
-        pass
+        dhcp_range = start + '/' + end
+        return self.iblox.delete(self.__get_ref('range', dhcp_range))
 
 class ClientError(Exception):
     def __init__(self, message):
