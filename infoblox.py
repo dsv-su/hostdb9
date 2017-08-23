@@ -68,10 +68,9 @@ class Client:
     def __init__(self, iblox):
         self.iblox = iblox
 
-    def __get_ref(self, path, name=None):
-        params = {}
+    def __get_ref(self, path, name=None, params={}):
         if name is not None:
-            params = {'name': name}
+            params['name'] = name
         remote_obj = self.iblox.get(path, params=params)
         if len(remote_obj) > 1:
             raise ClientError("Ambiguous result: " + json.dumps(remote_obj))
@@ -80,20 +79,20 @@ class Client:
         return remote_obj[0]['_ref']
 
     def __next_available_ip(self, vlan_ref):
-        result = self.iblox.post(vlan_ref, 
-                                 data='{"num":1}', 
+        result = self.iblox.post(vlan_ref,
+                                 data='{"num":1}',
                                  params={'_function': 'next_available_ip'})
         return result['ips'][0]
 
     def __restart_dhcp(self):
         gridref = self.__get_ref('grid')
-        data = {'_function': 'requestrestartservicestatus',
-                'member_order': 'SIMULTANEOUSLY',
-                'service_option': 'DHCP'}
+        data = {'_function': 'requestrestartservices',
+                'mode': 'SEQUENTIAL',
+                'services': 'DHCP'}
         self.iblox.get(gridref, data=json.dumps(data))
 
     def search(self, terms_dict):
-        return self.iblox.get('allrecords', 
+        return self.iblox.get('allrecords',
                               paginate=1,
                               params=terms_dict)
 
@@ -115,7 +114,7 @@ class Client:
         return result[0]['aliases']
 
     def list_dhcp_ranges(self, vlan_cidr):
-        pass
+        return self.iblox.get('range', params={'network': vlan_cidr})
 
     def create_host_auto(self, vlan_cidr, host, mac=None):
         vlan = self.iblox.get('network',
@@ -154,13 +153,13 @@ class Client:
                 'end_addr': end,
                 'server_association_type': 'FAILOVER',
                 'failover_association': 'ib-prod-dhcp'}
-        if comment not None:
+        if comment is not None:
             data['comment'] = comment
         return self.iblox.post('range', data=json.dumps(data))
 
     def delete_dhcp_range(self, start, end):
-        dhcp_range = start + '/' + end
-        return self.iblox.delete(self.__get_ref('range', dhcp_range))
+        return self.iblox.delete(self.__get_ref('range', params={'start_addr': start,
+                                                                 'end_addr': end}))
 
 class ClientError(Exception):
     def __init__(self, message):
