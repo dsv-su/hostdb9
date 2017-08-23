@@ -2,23 +2,16 @@
 # coding=utf-8
 
 import argparse, configparser
-import infoblox
+import client, errors
 
 class Hostdb9:
     def __init__(self, args, conf):
         self.verbose = args.verbose
-        ibloxconf = conf['server']
-        self.iblox = infoblox.Infoblox(ibloxconf['baseurl'],
-                                       ibloxconf['user'],
-                                       ibloxconf['password'],
-                                       bool(ibloxconf['verify_ssl']))
-        self.client = infoblox.Client(self.iblox)
+        self.client = client.Client(conf['server'])
 
     def execute(self, command):
         if command == ['test']:
-            self.temp()
-        elif command == ['test2']:
-            self.temp2()
+            self.test()
         else:
             print(command)
 
@@ -34,18 +27,7 @@ class Hostdb9:
                 return
             self.execute([command])
 
-    def temp2(self):
-        records = self.client.search({'name~': '.',
-                                      'zone': 'dsv.su.se',
-                                      '_return_fields+': 'record'})
-        for record in records:
-            if record['type'] == 'UNSUPPORTED':
-                print(record)
-            else:
-                print(record['type'],
-                      record['name'] + '.' + record['zone'])
-
-    def temp(self):
+    def test(self):
         print('Listing vlans...')
         vlans = self.client.list_vlans()
         vlan = vlans[0]
@@ -58,13 +40,13 @@ class Hostdb9:
             print(self.client.create_host_auto(vlan_cidr,
                                                'test.dsv.su.se',
                                                'AA:BB:CC:DD:EE:FF'))
-        except infoblox.ClientError as e:
+        except errors.ClientError as e:
             print(e.message)
         try:
             print('Creating cname...')
             print(self.client.create_cname('test.dsv.su.se',
                                            'example.dsv.su.se'))
-        except infoblox.ClientError as e:
+        except errors.ClientError as e:
             print(e.message)
         print('Listing cnames...')
         for cname in self.client.list_cnames('test.dsv.su.se'):
@@ -75,7 +57,7 @@ class Hostdb9:
             print('Creating dhcp ranges...')
             print(self.client.create_dhcp_range('193.10.8.40', '193.10.8.43'))
             print(self.client.create_dhcp_range('193.10.8.44', '193.10.8.46'))
-        except infoblox.ClientError as e:
+        except errors.ClientError as e:
             print(e.message)
         for ip in self.client.list_vlan_ips(vlan_cidr):
             print('Host:',
@@ -83,22 +65,25 @@ class Hostdb9:
                   ip['status'],
                   ip['names'])
         print('Listing dhcp ranges...')
-        print(self.client.list_dhcp_ranges(vlan_cidr))
+        for ra in self.client.list_dhcp_ranges(vlan_cidr):
+            print('Range:',
+                  ra['start_addr'],
+                  ra['end_addr'])
         try:
             print('Deleting dhcp ranges...')
             print(self.client.delete_dhcp_range('193.10.8.40', '193.10.8.43'))
             print(self.client.delete_dhcp_range('193.10.8.44', '193.10.8.46'))
-        except infoblox.ClientError as e:
+        except errors.ClientError as e:
             print(e.message)
         try:
             print('Deleting host...')
             print(self.client.delete_host('test.dsv.su.se'))
-        except infoblox.ClientError as e:
+        except errors.ClientError as e:
             print(e.message)
         try:
             print('Deleting cname...')
             print(self.client.delete_cname('example.dsv.su.se'))
-        except infoblox.ClientError as e:
+        except errors.ClientError as e:
             print(e.message)
         print('Listing cnames...')
         for cname in self.client.list_cnames('handledning.dsv.su.se'):
@@ -114,7 +99,7 @@ if __name__ == '__main__':
                         action  = 'count',
                         default = 0,
                         help    = 'enable verbose output')
-    parser.add_argument('command', 
+    parser.add_argument('command',
                         nargs   = '*',
                         default = None,
                         help    = 'the command to run against the ipam server')
