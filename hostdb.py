@@ -48,46 +48,54 @@ class Hostdb9:
     def temp(self):
         print('Listing vlans...')
         vlans = self.client.list_vlans()
-        for vlan in vlans:
-            vlan_ref = vlan['_ref']
-            vlan_cidr = vlan['network']
-            vlan_comment = vlan['comment']
-            print('Vlan:', vlan_cidr, vlan_comment)
-            for ip in self.client.list_vlan_ips(vlan_cidr):
-                print('Host:', 
-                      ip['ip_address'], 
-                      ip['status'], 
-                      ip['names'])
-            try:
-                print('Creating host...')
-                print(self.client.create_host_auto(vlan_cidr, 
-                                                   'test.dsv.su.se', 
-                                                   'AA:BB:CC:DD:EE:FF'))
-            except infoblox.ClientError as e:
-                print(e.message)
-            try:
-                print('Creating cname...')
-                print(self.client.create_cname('test.dsv.su.se', 
-                                               'example.dsv.su.se'))
-            except infoblox.ClientError as e:
-                print(e.message)
+        vlan = vlans[0]
+        vlan_ref = vlan['_ref']
+        vlan_cidr = vlan['network']
+        vlan_comment = vlan['comment']
+        print('Vlan:', vlan_cidr, vlan_comment)
+        for ip in self.client.list_vlan_ips(vlan_cidr):
+            print('Host:', 
+                  ip['ip_address'], 
+                  ip['status'], 
+                  ip['names'])
+        try:
+            print('Creating host...')
+            print(self.client.create_host_auto(vlan_cidr, 
+                                               'test.dsv.su.se', 
+                                               'AA:BB:CC:DD:EE:FF'))
+        except infoblox.ClientError as e:
+            print(e.message)
+        try:
+            print('Creating cname...')
+            print(self.client.create_cname('test.dsv.su.se', 
+                                           'example.dsv.su.se'))
+        except infoblox.ClientError as e:
+            print(e.message)
+        print('Listing cnames...')
+        for cname in self.client.list_cnames('test.dsv.su.se'):
+            print('Cname:',
+                  cname['canonical'],
+                  cname['name'])
 
-            print('Listing cnamees...')
-            for cname in self.client.list_cnames('test.dsv.su.se'):
-                print('Cname:',
-                      cname['canonical'],
-                      cname['name'])
-            try:
-                print('Deleting host...')
-                print(self.client.delete_host('test.dsv.su.se'))
-            except infoblox.ClientError as e:
-                print(e.message)
-            try:
-                print('Deleting cname...')
-                print(self.client.delete_cname('example.dsv.su.se'))
-            except infoblox.ClientError as e:
-                print(e.message)
+        print('Creating dhcp range...')
+        try:
 
+        except infoblox.ClientError as e:
+            print(e.message)            
+        print('Listing dhcp ranges...')
+
+        print('Deleting dhcp ranges...')
+        
+        try:
+            print('Deleting host...')
+            print(self.client.delete_host('test.dsv.su.se'))
+        except infoblox.ClientError as e:
+            print(e.message)
+        try:
+            print('Deleting cname...')
+            print(self.client.delete_cname('example.dsv.su.se'))
+        except infoblox.ClientError as e:
+            print(e.message)
         print('Listing cnames...')
         for cname in self.client.list_cnames('handledning.dsv.su.se'):
             print('Cname:', cname['name'])
@@ -101,7 +109,7 @@ if __name__ == '__main__':
     parser.add_argument('-v', '--verbose',
                         action  = 'count',
                         default = 0,
-                        help    ='enable verbose output')
+                        help    = 'enable verbose output')
     parser.add_argument('command', 
                         nargs   = '*',
                         default = None,
