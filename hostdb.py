@@ -53,21 +53,16 @@ class Hostdb9:
         vlan_cidr = vlan['network']
         vlan_comment = vlan['comment']
         print('Vlan:', vlan_cidr, vlan_comment)
-        for ip in self.client.list_vlan_ips(vlan_cidr):
-            print('Host:', 
-                  ip['ip_address'], 
-                  ip['status'], 
-                  ip['names'])
         try:
             print('Creating host...')
-            print(self.client.create_host_auto(vlan_cidr, 
-                                               'test.dsv.su.se', 
+            print(self.client.create_host_auto(vlan_cidr,
+                                               'test.dsv.su.se',
                                                'AA:BB:CC:DD:EE:FF'))
         except infoblox.ClientError as e:
             print(e.message)
         try:
             print('Creating cname...')
-            print(self.client.create_cname('test.dsv.su.se', 
+            print(self.client.create_cname('test.dsv.su.se',
                                            'example.dsv.su.se'))
         except infoblox.ClientError as e:
             print(e.message)
@@ -76,16 +71,25 @@ class Hostdb9:
             print('Cname:',
                   cname['canonical'],
                   cname['name'])
-
-        print('Creating dhcp range...')
         try:
-
+            print('Creating dhcp ranges...')
+            print(self.client.create_dhcp_range('193.10.8.40', '193.10.8.43'))
+            print(self.client.create_dhcp_range('193.10.8.44', '193.10.8.46'))
         except infoblox.ClientError as e:
-            print(e.message)            
+            print(e.message)
+        for ip in self.client.list_vlan_ips(vlan_cidr):
+            print('Host:',
+                  ip['ip_address'],
+                  ip['status'],
+                  ip['names'])
         print('Listing dhcp ranges...')
-
-        print('Deleting dhcp ranges...')
-        
+        print(self.client.list_dhcp_ranges(vlan_cidr))
+        try:
+            print('Deleting dhcp ranges...')
+            print(self.client.delete_dhcp_range('193.10.8.40', '193.10.8.43'))
+            print(self.client.delete_dhcp_range('193.10.8.44', '193.10.8.46'))
+        except infoblox.ClientError as e:
+            print(e.message)
         try:
             print('Deleting host...')
             print(self.client.delete_host('test.dsv.su.se'))
@@ -120,7 +124,7 @@ if __name__ == '__main__':
     conf.read('config.ini')
 
     client = Hostdb9(args, conf)
-    
+
     if args.command:
         client.execute(args.command)
     else:
