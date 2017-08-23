@@ -155,11 +155,15 @@ class Client:
                 'failover_association': 'ib-prod-dhcp'}
         if comment is not None:
             data['comment'] = comment
-        return self.iblox.post('range', data=json.dumps(data))
+        ref = self.iblox.post('range', data=json.dumps(data))
+        self.__restart_dhcp()
+        return ref
 
     def delete_dhcp_range(self, start, end):
-        return self.iblox.delete(self.__get_ref('range', params={'start_addr': start,
+        ref = self.iblox.delete(self.__get_ref('range', params={'start_addr': start,
                                                                  'end_addr': end}))
+        self.__restart_dhcp()
+        return ref
 
 class ClientError(Exception):
     def __init__(self, message):
