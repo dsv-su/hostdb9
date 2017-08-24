@@ -1,0 +1,26 @@
+network 193.10.8.32/28
+host    193.10.8.34     reserved # we always reserve the first address in a network
+host    193.10.8.35     test-1  AA:BB:CC:DD:EE:FF
+alias                   example-1.spidercenter.org
+alias                   example-1
+host    193.10.8.36
+host    193.10.8.37     dhcp
+host    193.10.8.38     dhcp
+host    193.10.8.39     dhcp
+host    193.10.8.40     dhcp
+host    193.10.8.41
+host    193.10.8.42
+host    193.10.8.43     test-2
+host    193.10.8.44
+host    193.10.8.45
+host    193.10.8.46
+
+cname   test-3  google.com
+cname   example-2.spidercenter.org      duckduckgo.com
+
+network 193.10.8.48/29
+host    193.10.8.50     reserved
+host    193.10.8.51     dhcp
+host    193.10.8.52     dhcp
+host    193.10.8.53     test-4
+host    193.10.8.54     test-5
