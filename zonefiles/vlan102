@@ -1,0 +1,49 @@
+network 193.10.8.32/28
+host    193.10.8.32     # network address
+host    193.10.8.33     # gateway
+
+host    193.10.8.34
+name    reserved
+comment we always reserve the first address in a network
+
+host    193.10.8.35
+name    test-1
+mac     AA:BB:CC:DD:EE:FF
+comment test host
+alias   example-1.spidercenter.org
+alias   example-1
+
+host    193.10.8.36
+name    ledig
+
+host    193.10.8.37
+name    dhcp
+
+host    193.10.8.38
+name    dhcp
+
+host    193.10.8.39
+name    dhcp
+
+host    193.10.8.40
+name    dhcp
+
+host    193.10.8.41
+name    ledig
+
+host    193.10.8.42
+name    ledig
+
+host    193.10.8.43
+name    test-2
+
+host    193.10.8.44
+name    ledig
+
+host    193.10.8.45
+name    ledig
+
+host    193.10.8.46
+name    ledig
+
+host    193.10.8.47     # broadcast

@@ -1,0 +1,19 @@
+network 193.10.8.48/29
+host    193.10.8.48     # network address
+host    193.10.8.49     # gateway
+host    193.10.8.50
+name    reserved
+
+host    193.10.8.51
+name    dhcp
+
+host    193.10.8.52
+name    dhcp
+
+host    193.10.8.53
+name    test-4
+
+host    193.10.8.54
+name    test-5
+
+host    193.10.8.55     # broadcast

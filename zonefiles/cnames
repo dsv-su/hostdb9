@@ -1,0 +1,5 @@
+cname   test-3
+target  google.com
+
+cname   example-2.spidercenter.org
+target  duckduckgo.com
