@@ -28,6 +28,7 @@ class Hostdb9:
             if args.quiet > 1:
                 self.warn = False
         self.client  = client.Client(conf['server'], self.warn)
+        self.dhcp_restart = False
 
     def __read_state(self):
         parser = dns_parser.Parser(self.domain)
@@ -53,6 +54,7 @@ class Hostdb9:
                 rtype = 'cname'
                 line = data['name'] +' -> '+ data['canonical']
             elif rtype == 'range':
+                self.dhcp_restart = True
                 rtype = 'dns range'
                 line = data['start_addr'] +' - '+ data['end_addr']
             elif rtype == 'record:host':
@@ -79,10 +81,13 @@ class Hostdb9:
                 if 'mac' in data['ipv4addrs'][0]:
                     newmac = data['ipv4addrs'][0]['mac']
                 if newmac and not oldmac:
+                    self.dhcp_restart = True
                     line += glue +'Add mac: '+ newmac
                 elif oldmac and not newmac:
+                    self.dhcp_restart = True
                     line += glue +'Remove mac: '+ oldmac
                 elif oldmac != newmac:
+                    self.dhcp_restart = True
                     line += glue +'Change mac: '+ oldmac +' to '+ newmac
                 oldcomment = ''
                 newcomment = ''
@@ -115,11 +120,11 @@ class Hostdb9:
     def update(self):
         try:
             if not self.quiet:
-                print('Reading target config...', end='', flush=True)
+                print('Reading target config...')
             target = self.__read_conf()
             if not self.quiet:
                 print('Done!')
-                print('Reading DNS state...', end='', flush=True)
+                print('Reading DNS state...')
             state = self.__read_state()
             if not self.quiet:
                 print('Done!')
@@ -145,8 +150,11 @@ class Hostdb9:
                     print('Aborting.')
                 return
             if not self.quiet:
-                print('Making requested changes...', end='', flush=True)
+                print('Making requested changes...')
             self.client.execute(actions)
+            if self.dhcp_restart:
+                self.client.restart_dhcp()
+                self.dhcp_restart = False
             if not self.quiet:
                 print('Done!')
         except errors.ClientError as e:
@@ -157,7 +165,7 @@ class Hostdb9:
             print(e.message)
             ans = self.answer
             if self.confirm:
-                ans = input("Do you want to see the complete exception? [y/N]").lower()
+                ans = input("Do you want to see the complete exception? [y/N]\n").lower()
             if ans not in ('yes', 'y'):
                 return
             import traceback

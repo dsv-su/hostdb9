@@ -27,14 +27,14 @@ class Client:
             try:
                 return self.do_request('get', path, **kwargs)
             except errors.IpamError as e:
-                if e.response['code'] == 'Client.Ibap.Proto':
+                if e.message['code'] == 'Client.Ibap.Proto':
                     return self.get(path, paginate=1, **kwargs)
                 else:
                     raise e
 
     def __get_first_page(self, path, **kwargs):
         if not kwargs:
-            kwargs = {'params': dict()}
+            kwargs = {'params': {}}
         if '_paging' not in kwargs['params']:
             params = kwargs['params']
             params['_paging'] = 1
@@ -59,7 +59,9 @@ class Client:
         else:
             raise errors.IpamError(r.status_code, j)
 
-    def __get_ref(self, path, name=None, params={}):
+    def __get_ref(self, path, name=None, params=None):
+        if not params:
+            params = {}
         if name is not None:
             params['name'] = name
         remote_obj = self.get(path, params=params)
