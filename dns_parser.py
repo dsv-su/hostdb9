@@ -150,7 +150,7 @@ class Parser(object):
         ip_dict = self.__require_ip('mac', mac)
         if 'mac' in ip_dict:
             raise errors.ParserError('mac', self.current_ip + ': There is already a mac address for this host')
-        ip_dict['mac'] = mac
+        ip_dict['mac'] = mac.upper()
 
     def parse_comment(self, comment):
         self.__require_context('comment', 'host', comment)

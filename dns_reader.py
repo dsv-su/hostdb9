@@ -1,15 +1,6 @@
 # coding=utf-8
 
-import sys
-
-def read(client, tld):
-    cname_dict = {}
-    for cname in client.list_cnames(tld):
-        alias = cname['name']
-        canonical = cname['canonical']
-        if canonical not in cname_dict:
-            cname_dict[canonical] = []
-        cname_dict[canonical].append(alias)
+def read(client, print_warnings):
     lines = []
     for vlan in client.list_vlans():
         net = vlan['network']
@@ -23,8 +14,8 @@ def read(client, tld):
             name = ''
             if len(names) > 0:
                 name = names[0]
-                if len(names) > 1:
-                    print('Warning! Ignoring additional names for ' + addr, file=sys.stderr)
+                if len(names) > 1 and print_warnings:
+                    print('Warning! Ignoring additional names for ' + addr)
             if name:
                 lines.append('name\t' + name)
                 (comment, aliases) = client.get_host_info(name)
@@ -35,9 +26,8 @@ def read(client, tld):
             mac = ip['mac_address']
             if mac:
                 lines.append('mac\t' + mac)
-    for canonical, aliases in cname_dict.items():
-        for alias in aliases:
-            lines.append('')
-            lines.append('cname\t' + alias)
-            lines.append('target\t' + canonical)
+    for cname in client.list_cnames():
+        lines.append('')
+        lines.append('cname\t' + cname['name'])
+        lines.append('target\t' + cname['canonical'])
     return lines

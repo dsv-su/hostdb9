@@ -1,104 +1,202 @@
 #!/usr/bin/env python3
 # coding=utf-8
 
-import argparse, configparser, os
+import argparse, configparser, os, pprint
 import client, dns_parser, dns_reader, errors
 
 class Hostdb9:
     def __init__(self, args, conf):
-        self.client = client.Client(conf['server'])
-        myconf = conf['client']
+        myconf  = conf['client']
+        self.domain  = myconf['tld']
         zonedir = myconf['zonedir']
         if not zonedir.endswith('/'):
             zonedir += '/'
         self.zonedir = zonedir
-        self.domain = myconf['tld']
+        self.quiet   = False
+        self.warn    = True
+        self.debug   = args.debug
         self.confirm = myconf.getboolean('ask_questions')
-        self.verbose = args.verbose
+        self.answer  = ''
+        if args.assume_yes:
+            self.confirm = False
+            self.answer = 'y'
+        elif args.assume_no:
+            self.confirm = False
+            self.answer = 'n'
+        if args.quiet > 0:
+            self.quiet = True
+            if args.quiet > 1:
+                self.warn = False
+        self.client  = client.Client(conf['server'], self.warn)
 
-    def execute(self, commandlist):
-        command = commandlist[0]
-        args = commandlist[1:]
-        if command == 'dump':
-            self.dump_state()
-        elif command == 'update':
-            self.update()
-        else:
-            print(command)
+    def __read_state(self):
+        parser = dns_parser.Parser(self.domain)
+        read_conf = dns_reader.read(self.client, self.warn)
+        return parser.parse(read_conf)
 
-    def interact(self):
-        while True:
-            command = 'exit'
-            try:
-                command = input('hostdb9> ')
-            except EOFError as e:
-                print(command)
-                return
-            if command == 'exit':
-                return
-            self.execute([command])
+    def __read_conf(self):
+        parser = dns_parser.Parser(self.domain)
+        for item in os.listdir(self.zonedir):
+            if item.endswith('.conf'):
+                with open(self.zonedir + item, 'r') as f:
+                    parser.parse(f)
+        return parser.get_state()
+
+    def __format_changes(self, changes):
+        out = []
+        for change in changes:
+            action = change['action']
+            rtype  = change['type']
+            data   = change['data']
+            line   = ''
+            if rtype == 'record:cname':
+                rtype = 'cname'
+                line = data['name'] +' -> '+ data['canonical']
+            elif rtype == 'range':
+                rtype = 'dns range'
+                line = data['start_addr'] +' - '+ data['end_addr']
+            elif rtype == 'record:host':
+                rtype = 'host'
+                glue = "\n  "
+                olddata = {}
+                if action == 'update':
+                    olddata = change['olddata']
+                oldname = olddata['name']
+                newname = data['name']
+                line = ''
+                if newname and not oldname:
+                    line += newname
+                elif oldname and not newname:
+                    line += oldname
+                elif oldname != newname:
+                    line += oldname +' to '+ newname
+                else:
+                    line += newname
+                oldmac = ''
+                newmac = ''
+                if 'mac' in olddata:
+                    oldmac = olddata['mac']
+                if 'mac' in data['ipv4addrs'][0]:
+                    newmac = data['ipv4addrs'][0]['mac']
+                if newmac and not oldmac:
+                    line += glue +'Add mac: '+ newmac
+                elif oldmac and not newmac:
+                    line += glue +'Remove mac: '+ oldmac
+                elif oldmac != newmac:
+                    line += glue +'Change mac: '+ oldmac +' to '+ newmac
+                oldcomment = ''
+                newcomment = ''
+                if 'comment' in olddata:
+                    oldcomment = olddata['comment']
+                if 'comment' in data:
+                    newcomment = data['comment']
+                if newcomment and not oldcomment:
+                    line += glue +'Add comment: "'+ newcomment +'"'
+                elif oldcomment and not newcomment:
+                    line += glue +'Remove comment: "'+ oldcomment +'"'
+                elif oldcomment != newcomment:
+                    line += glue +'Update comment: "'+ oldcomment +'" to "'+ newcomment +'"'
+                oldaliases = []
+                newaliases = []
+                if 'aliases' in olddata:
+                    oldaliases = olddata['aliases']
+                if 'aliases' in data:
+                    newaliases = data['aliases']
+                for alias in newaliases:
+                    if alias not in oldaliases:
+                        line += glue +'Add alias: '+ alias
+                    else:
+                        oldaliases.remove(alias)
+                for alias in oldaliases:
+                    line += glue +'Remove alias: '+ alias
+            out.append(action +' '+ rtype +': '+ line)
+        return out
 
     def update(self):
         try:
-            import pprint
-            parser = dns_parser.Parser(self.domain)
-            for item in os.listdir(self.zonedir):
-                if item.endswith('.conf'):
-                    with open(self.zonedir + item, 'r') as f:
-                        parser.parse(f)
-            target = parser.get_state()
-            parser.clear_state()
-            read_conf = dns_reader.read(self.client, self.domain)
-            state = parser.parse(read_conf)
-            if self.verbose:
-                print("State:")
-                pprint.pprint(state)
+            if not self.quiet:
+                print('Reading target config...', end='', flush=True)
+            target = self.__read_conf()
+            if not self.quiet:
+                print('Done!')
+                print('Reading DNS state...', end='', flush=True)
+            state = self.__read_state()
+            if not self.quiet:
+                print('Done!')
+            if self.debug:
                 print("Target:")
                 pprint.pprint(target)
+                print("State:")
+                pprint.pprint(state)
             actions = self.client.diff(state, target)
-            if self.confirm:
+            if not actions:
+                if not self.quiet:
+                    print("No changes to be made.")
+                return
+            if not self.quiet:
                 print("Changes:")
-                pprint.pprint(actions)
+                for line in self.__format_changes(actions):
+                    print(line)
+            ans = self.answer
+            if self.confirm:
                 ans = input("Are you sure you want to make these changes? [Y/n]\n").lower()
-                if ans not in ('yes', 'y', ''):
+            if ans not in ('yes', 'y', ''):
+                if not self.quiet:
                     print('Aborting.')
-                    return
-            print('Making requested changes')
+                return
+            if not self.quiet:
+                print('Making requested changes...', end='', flush=True)
             self.client.execute(actions)
+            if not self.quiet:
+                print('Done!')
         except errors.ClientError as e:
             if isinstance(e, errors.ParserError):
                 print('A parsing error occurred while processing a '+ e.context +' line:')
             elif isinstance(e, errors.IpamError):
                 print('An error occurred when communicating with the server:')
             print(e.message)
+            ans = self.answer
             if self.confirm:
-                ans = input("Do you want to see the complete exception? [y/N]\n").lower()
-                if ans not in ('no', 'n', ''):
-                    import traceback
-                    print(traceback.format_exc())
-
+                ans = input("Do you want to see the complete exception? [y/N]").lower()
+            if ans not in ('yes', 'y'):
+                return
+            import traceback
+            print(traceback.format_exc())
 
     def dump_state(self):
-        for line in dns_reader.read(self.client, self.domain):
+        for line in dns_reader.read(self.client):
             print(line)
 
 
 if __name__ == '__main__':
-    parser = argparse.ArgumentParser()
-    parser.add_argument('-v', '--verbose',
+    parser = argparse.ArgumentParser(description='A utility to manage DNS via Infoblox WAPI.')
+    parser.add_argument('command',
+                        choices = ['dump', 'update'],
+                        help    = 'the command to run')
+    vgroup = parser.add_mutually_exclusive_group()
+    vgroup.add_argument('-d', '--debug',
+                        action  = 'store_true',
+                        help    = 'Enable debug output.')
+    vgroup.add_argument('-q', '--quiet',
                         action  = 'count',
                         default = 0,
-                        help    = 'enable verbose output')
-    parser.add_argument('command',
-                        nargs   = '*',
-                        default = None,
-                        help    = 'the command to run')
+                        help    = 'Suppress informational output. Specify twice to also suppress warnings.')
+    qgroup = parser.add_mutually_exclusive_group()
+    qgroup.add_argument('-y', '--assume-yes',
+                        action  = 'store_true',
+                        help    = "Don't ask questions, always assume yes.")
+    qgroup.add_argument('-n', '--assume-no',
+                        action  = 'store_true',
+                        help    = "Don't ask questions, always assume no.")
     args = parser.parse_args()
     conf = configparser.ConfigParser()
     conf.read('config.ini')
     client = Hostdb9(args, conf)
-    if args.command:
-        client.execute(args.command)
-    else:
-        client.interact()
+    command = args.command
+    if command == 'dump':
+        client.dump_state()
+    elif command == 'update':
+        client.update()
+    elif command == 'diff':
+        client.diff()
 

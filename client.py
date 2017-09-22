@@ -4,7 +4,7 @@ import requests, json, copy, sys
 import errors
 
 class Client:
-    def __init__(self, conf):
+    def __init__(self, conf, warn):
         url = conf['baseurl']
         if not url.endswith('/'):
             url += '/'
@@ -12,6 +12,7 @@ class Client:
         self.session = requests.Session()
         self.session.auth = (conf['user'], conf['password'])
         self.session.verify = bool(conf['verify_ssl'])
+        self.warn = warn
 
     def get(self, path, paginate=0, **kwargs):
         if paginate == 1:
@@ -86,8 +87,8 @@ class Client:
     def list_vlan_ips(self, vlan_cidr):
         return self.get('ipv4address', params={'network': vlan_cidr})
 
-    def list_cnames(self, host):
-        return self.get('record:cname', params={'canonical~': host})
+    def list_cnames(self):
+        return self.get('record:cname')
 
     def get_host_info(self, host):
         result = self.get(self.__get_ref('record:host', host), params={'_return_fields': 'comment,aliases'})
@@ -110,7 +111,7 @@ class Client:
             data   = change['data']
             if action != 'create':
                 if rtype == 'record:host':
-                    rtype = self.__get_ref(rtype, name=change['oldname'])
+                    rtype = self.__get_ref(rtype, name=change['olddata']['name'])
                 else:
                     rtype = self.__get_ref(rtype, params=json.dumps(data))
             if action == 'delete':
@@ -137,7 +138,8 @@ class Client:
         removals = []
         for network, ips in target.items():
             if network not in base:
-                print("Warning! Nonexistent network: "+ network, file=sys.stderr)
+                if self.warn:
+                    print("Warning! Nonexistent network: "+ network)
                 continue
             for ip, data in ips.items():
                 if ip not in base[network]:
@@ -148,11 +150,12 @@ class Client:
                         if olddata == {}:
                             additions.append(self.__def_host('create', ip, data))
                         else:
-                            updates.append(self.__def_host('update', ip, data, olddata['name']))
+                            updates.append(self.__def_host('update', ip, data, olddata))
                     base[network].pop(ip)
         for network, ips in base.items():
             if network not in target:
-                print("Ignoring network: "+ network, file=sys.stderr)
+                if self.warn:
+                    print("Ignoring network: "+ network)
                 continue
             for ip, data in ips.items():
                 if data:
@@ -191,7 +194,7 @@ class Client:
                 removals.append(self.__def_cname('delete', alias, canonical))
         return (additions, removals)
 
-    def __def_host(self, action, ip, data, oldname=None):
+    def __def_host(self, action, ip, data, olddata=None):
         ipdata = {'ipv4addr': ip}
         if 'mac' in data:
             ipdata['mac'] = data['mac']
@@ -200,8 +203,8 @@ class Client:
                   'data': {'name': data['name'],
                            'ipv4addrs': [ipdata],
                            'comment': ''}}
-        if oldname is not None:
-            result['oldname'] = oldname
+        if olddata is not None:
+            result['olddata'] = olddata
         for key in ('comment', 'aliases'):
             if key in data:
                 result['data'][key] = data[key]
