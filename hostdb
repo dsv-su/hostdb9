@@ -200,7 +200,8 @@ if __name__ == '__main__':
                         help    = "Don't ask questions, always assume no.")
     args = parser.parse_args()
     conf = configparser.ConfigParser()
-    conf.read('config.ini')
+    conffile = os.path.dirname(os.path.realpath(__file__)) + '/config.ini'
+    conf.read(conffile)
     client = Hostdb9(args, conf)
     command = args.command
     if command == 'dump':
