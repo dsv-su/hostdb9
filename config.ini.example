@@ -7,4 +7,4 @@ verify_ssl = True
 [client]
 ask_questions = yes
 tld = dsv.su.se
-zonedir = ./zonefiles
+zonedir = ./zonefiles # can be absolute path or relative to hostdb.py

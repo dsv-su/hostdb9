@@ -11,6 +11,8 @@ class Hostdb9:
         zonedir = myconf['zonedir']
         if not zonedir.endswith('/'):
             zonedir += '/'
+        if not zonedir.startswith('/'):
+            zonedir = os.path.dirname(os.path.realpath(__file__)) + '/' + zonedir
         self.zonedir = zonedir
         self.quiet   = False
         self.warn    = True
