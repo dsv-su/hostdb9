@@ -174,7 +174,7 @@ class Hostdb9:
             print(traceback.format_exc())
 
     def dump_state(self):
-        for line in dns_reader.read(self.client):
+        for line in dns_reader.read(self.client, self.warn):
             print(line)
 
 
