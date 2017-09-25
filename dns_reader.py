@@ -24,7 +24,7 @@ def read(client, print_warnings):
                 for alias in aliases:
                     lines.append('alias\t' + alias)
             mac = ip['mac_address']
-            if mac:
+            if mac and not name.startswith('dhcp'):
                 lines.append('mac\t' + mac)
     for cname in client.list_cnames():
         lines.append('')

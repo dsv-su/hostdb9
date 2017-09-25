@@ -148,8 +148,15 @@ class Parser(object):
         if mac is None:
             raise errors.ParserError('mac', 'No mac address provided')
         ip_dict = self.__require_ip('mac', mac)
+        if 'name' not in ip_dict:
+            err_msg = self.current_ip + ': Hostname must be specified before mac address'
+            raise errors.ParserError('mac', err_msg)
+        if ip_dict['name'].startswith('dhcp'):
+            err_msg = self.current_ip + ': DHCP hosts cannot have a static mac address assigned'
+            raise errors.ParserError('mac', err_msg)
         if 'mac' in ip_dict:
-            raise errors.ParserError('mac', self.current_ip + ': There is already a mac address for this host')
+            err_msg = self.current_ip + ': There is already a mac address for this host'
+            raise errors.ParserError('mac', err_msg)
         ip_dict['mac'] = mac.upper()
 
     def parse_comment(self, comment):
